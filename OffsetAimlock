@@ -1,0 +1,66 @@
+import UIKit
+
+final class ViewController: UIViewController {
+
+    private var buffer = Data([
+        0x00, 0x00, 0x00, 0x00,
+        0x12, 0x34, 0x56, 0x78
+    ])
+
+    private var startPoint: CGPoint?
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        let swipe = UIPanGestureRecognizer(
+            target: self,
+            action: #selector(handleSwipe(_:))
+        )
+
+        view.addGestureRecognizer(swipe)
+    }
+
+    @objc private func handleSwipe(_ gesture: UIPanGestureRecognizer) {
+        switch gesture.state {
+
+        case .began:
+            startPoint = gesture.location(in: view)
+
+        case .changed, .ended:
+            guard let start = startPoint else { return }
+
+            let current = gesture.location(in: view)
+            let dx = current.x - start.x
+            let dy = current.y - start.y
+            let distance = sqrt(dx * dx + dy * dy)
+
+            if distance > 5 {
+                replaceZeroValue()
+                startPoint = nil
+            }
+
+        default:
+            break
+        }
+    }
+
+    private func replaceZeroValue() {
+        let oldValue: [UInt8] = [
+            0x00, 0x00, 0x00, 0x00
+        ]
+
+        let newValue: [UInt8] = [
+            0x73, 0xD7, 0x7C, 0x80
+        ]
+
+        guard buffer.count >= 4 else { return }
+
+        for offset in 0...(buffer.count - 4) {
+            if Array(buffer[offset..<offset + 4]) == oldValue {
+                buffer.replaceSubrange(
+                    offset..<offset + 4,
+                    with: newValue
+                )
+            }
+        }
+}
