@@ -1,187 +1,57 @@
-import UIKit
-import Foundation
+# .github/workflows/main.yml
 
-public final class LordexSwipePatch: NSObject {
+name: Build LordexSwipePatch
 
-    public static let shared = LordexSwipePatch()
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
 
-    private let searchBytes: [UInt8] = [
-        0x62, 0x6F, 0x64, 0x79
-    ]
+jobs:
+  build:
+    name: Build & Validate
+    runs-on: macos-latest
 
-    private let replacementBytes: [UInt8] = [
-        0x68, 0x65, 0x61, 0x64  // ✅ Fixed: Removed quote mark
-    ]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-    private var touchStart: CGPoint?
-    private var didPatch = false
-    private var touchActive = false
-    private var cooldownActive = false
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
-    private override init() {
-        super.init()
-    }
+      - name: Show Xcode version
+        run: xcodebuild -version
 
-    public func attach(to fireButton: UIView) {
-        fireButton.isUserInteractionEnabled = true
+      - name: Compile Swift file (standalone check)
+        run: |
+          swiftc \
+            -sdk $(xcrun --sdk iphonesimulator --show-sdk-path) \
+            -target arm64-apple-ios15.0-simulator \
+            -module-name LordexSwipePatch \
+            Sources/LordexSwipePatch.swift \
+            -o /tmp/LordexSwipePatch.o
+        continue-on-error: false
 
-        let recognizer = UIPanGestureRecognizer(
-            target: self,
-            action: #selector(handleSwipe(_:))
-        )
+      - name: Build Xcode project (if exists)
+        if: ${{ hashFiles('*.xcodeproj') != '' }}
+        run: |
+          xcodebuild \
+            -scheme "LordexSwipePatch" \
+            -destination "platform=iOS Simulator,name=iPhone 15,OS=latest" \
+            -configuration Debug \
+            build \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcpretty
 
-        recognizer.cancelsTouchesInView = false
-        fireButton.addGestureRecognizer(recognizer)
-    }
-
-    @objc private func handleSwipe(
-        _ recognizer: UIPanGestureRecognizer
-    ) {
-        guard let view = recognizer.view else {
-            return
-        }
-
-        let point = recognizer.location(in: view)
-
-        switch recognizer.state {
-
-        case .began:
-            touchActive = true
-            touchStart = point
-            didPatch = false
-
-        case .changed:
-            guard touchActive,
-                  !didPatch,
-                  !cooldownActive,
-                  let start = touchStart
-            else {
-                return
-            }
-
-            let dx = point.x - start.x
-            let dy = point.y - start.y
-
-            let distance = sqrt(
-                (dx * dx) + (dy * dy)
-            )
-
-            guard distance > 5 else {
-                return
-            }
-
-            guard dy < 0 else {  // ✅ Swipe upward only
-                return
-            }
-
-            if patchFile() {
-                didPatch = true
-            }
-
-        case .ended,
-             .cancelled,
-             .failed:
-
-            if didPatch {
-                restoreFile()
-                cooldownActive = true
-                DispatchQueue.main.asyncAfter(
-                    deadline: .now() + 1.0
-                ) { [weak self] in
-                    self?.cooldownActive = false
-                }
-            }
-
-            touchStart = nil
-            touchActive = false
-            didPatch = false
-
-        default:
-            break
-        }
-    }
-
-    private func targetURL() -> URL? {
-        guard let documents = FileManager.default.urls(
-            for: .documentDirectory,
-            in: .userDomainMask
-        ).first else {
-            return nil
-        }
-
-        return documents
-            .appendingPathComponent(
-                "contentcache/compulsory/ios/gameassetbundles/data/iOS/data/com.dts.freefireth/files/contentcache/compulsory/ios/gameassetbundles/cache_res.CfnFfsr1SbsqQ6jQTKsEus~3D"
-            )
-    }
-
-    private func patchFile() -> Bool {
-        guard let url = targetURL(),
-              var data = try? Data(contentsOf: url)
-        else {
-            return false
-        }
-
-        guard data.count >= searchBytes.count else {
-            return false
-        }
-
-        for offset in 0..<(data.count - searchBytes.count + 1) {
-
-            let range = offset..<(offset + searchBytes.count)
-
-            if Array(data[range]) == searchBytes {
-
-                data.replaceSubrange(
-                    range,
-                    with: replacementBytes
-                )
-
-                do {
-                    try data.write(
-                        to: url,
-                        options: .atomic
-                    )
-
-                    return true
-                } catch {
-                    return false
-                }
-            }
-        }
-
-        return false
-    }
-
-    private func restoreFile() {
-        guard let url = targetURL(),
-              var data = try? Data(contentsOf: url)
-        else {
-            return
-        }
-
-        guard data.count >= replacementBytes.count else {
-            return
-        }
-
-        for offset in 0..<(data.count - replacementBytes.count + 1) {
-
-            let range = offset..<(offset + replacementBytes.count)
-
-            if Array(data[range]) == replacementBytes {
-
-                data.replaceSubrange(
-                    range,
-                    with: searchBytes
-                )
-
-                try? data.write(
-                    to: url,
-                    options: .atomic
-                )
-
-                return
-            }
-        }
-    }
-}
+      - name: Run tests (if scheme has tests)
+        if: ${{ hashFiles('*.xcodeproj') != '' }}
+        run: |
+          xcodebuild \
+            -scheme "LordexSwipePatch" \
+            -destination "platform=iOS Simulator,name=iPhone 15,OS=latest" \
+            -configuration Debug \
+            test \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcpretty
+        continue-on-error: true
