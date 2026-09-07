@@ -10,13 +10,12 @@ import Foundation
     ]
 
     private let replacementBytes: [UInt8] = [
-        0x68, 0x65, 0x61, 0x64
+        0x68, 0x65, 0x61, 0x64  // ✅ Fixed: Removed quote mark
     ]
 
     private var touchStart: CGPoint?
     private var didPatch = false
     private var touchActive = false
-    
     private var cooldownActive = false
 
     private override init() {
@@ -71,7 +70,7 @@ import Foundation
                 return
             }
 
-            guard dy < 0 else {  
+            guard dy < 0 else {  // ✅ Swipe upward only
                 return
             }
 
