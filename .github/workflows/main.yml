@@ -28,7 +28,7 @@ jobs:
             -sdk $(xcrun --sdk iphonesimulator --show-sdk-path) \
             -target arm64-apple-ios15.0-simulator \
             -module-name NewOffset \
-            Document/NewOffset.swift \
+            Test/NewOffset.swift \
             -o /tmp/NewOffset.o
         continue-on-error: false
 
