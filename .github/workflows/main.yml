@@ -1,6 +1,6 @@
 # .github/workflows/main.yml
 
-name: Build LordexSwipePatch
+name: Build
 
 on:
   push:
