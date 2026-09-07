@@ -27,9 +27,9 @@ jobs:
           swiftc \
             -sdk $(xcrun --sdk iphonesimulator --show-sdk-path) \
             -target arm64-apple-ios15.0-simulator \
-            -module-name LordexSwipePatch \
-            Sources/LordexSwipePatch.swift \
-            -o /tmp/LordexSwipePatch.o
+            -module-name NewOffset \
+            Document/NewOffset.swift \
+            -o /tmp/NewOffset.o
         continue-on-error: false
 
       - name: Build Xcode project (if exists)
@@ -47,8 +47,8 @@ jobs:
         if: ${{ hashFiles('*.xcodeproj') != '' }}
         run: |
           xcodebuild \
-            -scheme "LordexSwipePatch" \
-            -destination "platform=iOS Simulator,name=iPhone 15,OS=latest" \
+            -scheme "NewOffset" \
+            -destination "platform=iOS Simulator,name=iPhone xs,OS=latest" \
             -configuration Debug \
             test \
             CODE_SIGNING_ALLOWED=NO \
