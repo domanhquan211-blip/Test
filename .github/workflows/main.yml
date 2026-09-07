@@ -1,7 +1,7 @@
 import UIKit
 import Foundation
 
-@objc public final class LordexSwipePatch: NSObject {
+public final class LordexSwipePatch: NSObject {
 
     public static let shared = LordexSwipePatch()
 
